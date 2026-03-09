@@ -5,9 +5,10 @@ A Strava companion web app that enhances route planning with street lighting dat
 
 ## Architecture
 - **Frontend**: React SPA with Tailwind CSS, Shadcn UI components, Leaflet maps, Recharts for elevation profiles
-- **Backend**: Express.js API server with in-memory storage of sample route data
+- **Backend**: Express.js API server with PostgreSQL (Drizzle ORM), OSRM routing
 - **Routing**: wouter for client-side routing
 - **Data Fetching**: TanStack React Query
+- **Road Snapping**: OSRM demo API (router.project-osrm.org) — free, no API key needed
 
 ## Key Features
 1. **Route Explorer** - Browse routes with search, filter by difficulty/activity/lighting score
@@ -16,21 +17,27 @@ A Strava companion web app that enhances route planning with street lighting dat
 4. **Facility Markers** - Public restrooms, coffee shops, water fountains, police stations, stores
 5. **Elevation Profile** - Recharts area chart synced with lighting data
 6. **Safety Analysis Panel** - Lighting score, segment breakdown, lamp count, safety tips
+7. **Route Creation** - 4-step flow: place waypoints on map → snap to roads → set lighting/facilities → save
+8. **User Route Management** - Create, view, and delete user-created routes
 
 ## Project Structure
 ```
 client/src/
   pages/
     home.tsx          - Route list/search page
-    route-detail.tsx  - Single route view with map + safety panel
+    route-detail.tsx  - Single route view with map + safety panel + delete for user routes
+    create-route.tsx  - 4-step route creation wizard
   components/
     route-map.tsx     - Leaflet map with lighting/amenity overlays
     elevation-profile.tsx - Elevation chart component
 shared/
-  schema.ts           - Zod schemas for Route, Amenity, RouteSearch
+  schema.ts           - Drizzle tables (user_routes, user_amenities, cached_route_geometry) + Zod schemas
 server/
-  routes.ts           - API endpoints (/api/routes, /api/routes/:id, /api/routes/:id/amenities)
-  storage.ts          - In-memory storage with 9 sample routes across US cities
+  routes.ts           - API endpoints
+  storage.ts          - Storage with sample routes + DB-backed user routes
+  osrm.ts             - OSRM road-snapping service
+  db.ts               - Drizzle PostgreSQL connection
+  types/              - TypeScript declarations (@mapbox/polyline)
 ```
 
 ## Theme
@@ -40,5 +47,8 @@ server/
 
 ## API Endpoints
 - `GET /api/routes` - List routes with optional filters (search, difficulty, type, minLightingScore)
-- `GET /api/routes/:id` - Single route detail
+- `GET /api/routes/:id` - Single route detail (sample + user-created)
 - `GET /api/routes/:id/amenities` - Amenities near a route
+- `POST /api/routes` - Create a user route
+- `DELETE /api/routes/:id` - Delete a user-created route
+- `POST /api/routes/snap` - Snap waypoints to real roads via OSRM

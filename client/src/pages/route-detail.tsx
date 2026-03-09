@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import type { Route, Amenity } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import RouteMap from "@/components/route-map";
 import ElevationProfile from "@/components/elevation-profile";
 import {
   ArrowLeft, MapPin, Mountain, Zap, Lightbulb, Clock,
-  Bath, Coffee, Droplets, Shield, Store, ChevronRight, AlertCircle, RefreshCw
+  Bath, Coffee, Droplets, Shield, Store, ChevronRight, AlertCircle, RefreshCw, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,9 +44,25 @@ const AMENITY_LABELS: Record<string, string> = {
 export default function RouteDetail() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [showLighting, setShowLighting] = useState(true);
   const [showAmenities, setShowAmenities] = useState(true);
   const [showLampPosts, setShowLampPosts] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", `/api/routes/${params.id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/routes"] });
+      toast({ title: "Route deleted", description: "The route has been removed." });
+      setLocation("/");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete route", variant: "destructive" });
+    },
+  });
 
   const { data: route, isLoading: routeLoading, isError: routeError, refetch: refetchRoute } = useQuery<Route>({
     queryKey: ["/api/routes", params.id],
@@ -178,6 +196,22 @@ export default function RouteDetail() {
           <Badge variant="secondary" className={`${difficultyColor[route.difficulty]} shrink-0`}>
             {route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1)}
           </Badge>
+          {route.isUserCreated && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-destructive shrink-0"
+              onClick={() => {
+                if (window.confirm("Delete this route? This action cannot be undone.")) {
+                  deleteMutation.mutate();
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              data-testid="button-delete-route"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </header>
 

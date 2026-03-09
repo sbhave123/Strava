@@ -1,9 +1,16 @@
 import type { Route, Amenity, RouteSearch } from "@shared/schema";
+import { userRoutes, userAmenities, cachedRouteGeometry } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import { snapToRoads, splitCoordinatesIntoSegments } from "./osrm";
 
 export interface IStorage {
   getRoutes(search?: RouteSearch): Promise<Route[]>;
   getRouteById(id: string): Promise<Route | undefined>;
   getAmenitiesForRoute(routeId: string): Promise<Amenity[]>;
+  createRoute(route: Route, amenities: Amenity[]): Promise<Route>;
+  deleteRoute(id: string): Promise<boolean>;
+  initializeSampleRoutes(): Promise<void>;
 }
 
 function generateRouteSegments(coordinates: [number, number][], lightingPattern: string[]): Route["segments"] {
@@ -32,100 +39,22 @@ function calculateLightingScore(segments: Route["segments"]): number {
   return Math.round((litCoords / totalCoords) * 100);
 }
 
-const sampleRoutes: Route[] = (() => {
-  const sfEmbarcadero: [number, number][] = [
-    [37.7955, -122.3937], [37.7960, -122.3920], [37.7968, -122.3900],
-    [37.7975, -122.3882], [37.7983, -122.3864], [37.7990, -122.3845],
-    [37.7997, -122.3828], [37.8005, -122.3810], [37.8012, -122.3792],
-    [37.8020, -122.3775], [37.8028, -122.3757], [37.8035, -122.3740],
-    [37.8042, -122.3722], [37.8050, -122.3705], [37.8058, -122.3688],
-    [37.8065, -122.3670], [37.8072, -122.3652], [37.8080, -122.3635],
-    [37.8087, -122.3618], [37.8095, -122.3600],
-  ];
+interface SampleRouteDef {
+  id: string;
+  name: string;
+  description: string;
+  distance: number;
+  elevationGain: number;
+  difficulty: "easy" | "moderate" | "hard";
+  type: "run" | "ride" | "walk";
+  city: string;
+  waypoints: [number, number][];
+  lightingPattern: string[];
+  totalLampPosts: number;
+}
 
-  const sfGoldenGate: [number, number][] = [
-    [37.7694, -122.4862], [37.7705, -122.4870], [37.7718, -122.4878],
-    [37.7730, -122.4885], [37.7745, -122.4890], [37.7758, -122.4895],
-    [37.7770, -122.4898], [37.7785, -122.4900], [37.7800, -122.4903],
-    [37.7815, -122.4905], [37.7830, -122.4908], [37.7845, -122.4910],
-    [37.7860, -122.4912], [37.7875, -122.4915], [37.7890, -122.4918],
-    [37.7905, -122.4920], [37.7920, -122.4922], [37.7935, -122.4925],
-    [37.7950, -122.4928], [37.7960, -122.4930], [37.7972, -122.4932],
-    [37.7985, -122.4935], [37.7998, -122.4937], [37.8010, -122.4940],
-    [37.8022, -122.4942],
-  ];
-
-  const nycCentralPark: [number, number][] = [
-    [40.7644, -73.9730], [40.7650, -73.9725], [40.7658, -73.9718],
-    [40.7665, -73.9712], [40.7672, -73.9705], [40.7680, -73.9698],
-    [40.7688, -73.9690], [40.7695, -73.9683], [40.7702, -73.9677],
-    [40.7710, -73.9670], [40.7718, -73.9662], [40.7725, -73.9655],
-    [40.7732, -73.9648], [40.7740, -73.9640], [40.7748, -73.9633],
-    [40.7755, -73.9625], [40.7762, -73.9618], [40.7770, -73.9610],
-    [40.7778, -73.9602], [40.7785, -73.9595],
-  ];
-
-  const nycBrooklyn: [number, number][] = [
-    [40.6892, -73.9845], [40.6888, -73.9830], [40.6882, -73.9815],
-    [40.6878, -73.9800], [40.6872, -73.9785], [40.6868, -73.9770],
-    [40.6862, -73.9755], [40.6858, -73.9740], [40.6855, -73.9725],
-    [40.6852, -73.9710], [40.6850, -73.9695], [40.6848, -73.9680],
-    [40.6845, -73.9665], [40.6842, -73.9650], [40.6840, -73.9635],
-    [40.6838, -73.9620], [40.6835, -73.9605], [40.6832, -73.9590],
-  ];
-
-  const chicagoLakefront: [number, number][] = [
-    [41.8827, -87.6130], [41.8835, -87.6125], [41.8845, -87.6118],
-    [41.8855, -87.6112], [41.8865, -87.6105], [41.8875, -87.6098],
-    [41.8885, -87.6092], [41.8895, -87.6085], [41.8905, -87.6078],
-    [41.8915, -87.6072], [41.8925, -87.6065], [41.8935, -87.6058],
-    [41.8945, -87.6052], [41.8955, -87.6045], [41.8965, -87.6038],
-    [41.8975, -87.6032], [41.8985, -87.6025], [41.8995, -87.6018],
-    [41.9005, -87.6012], [41.9015, -87.6005], [41.9025, -87.5998],
-    [41.9035, -87.5992],
-  ];
-
-  const seattleBurke: [number, number][] = [
-    [47.6535, -122.3220], [47.6542, -122.3208], [47.6550, -122.3195],
-    [47.6558, -122.3182], [47.6565, -122.3170], [47.6572, -122.3158],
-    [47.6580, -122.3145], [47.6588, -122.3132], [47.6595, -122.3120],
-    [47.6602, -122.3108], [47.6610, -122.3095], [47.6618, -122.3082],
-    [47.6625, -122.3070], [47.6632, -122.3058], [47.6640, -122.3045],
-    [47.6648, -122.3032],
-  ];
-
-  const portlandForest: [number, number][] = [
-    [45.5100, -122.7160], [45.5108, -122.7175], [45.5115, -122.7190],
-    [45.5122, -122.7205], [45.5130, -122.7220], [45.5138, -122.7235],
-    [45.5145, -122.7250], [45.5152, -122.7265], [45.5160, -122.7280],
-    [45.5168, -122.7295], [45.5175, -122.7310], [45.5182, -122.7325],
-    [45.5190, -122.7340], [45.5198, -122.7355], [45.5205, -122.7370],
-    [45.5212, -122.7385], [45.5220, -122.7400], [45.5228, -122.7415],
-  ];
-
-  const austinTownLake: [number, number][] = [
-    [30.2630, -97.7510], [30.2635, -97.7495], [30.2640, -97.7480],
-    [30.2645, -97.7465], [30.2650, -97.7450], [30.2655, -97.7435],
-    [30.2660, -97.7420], [30.2665, -97.7405], [30.2670, -97.7390],
-    [30.2675, -97.7375], [30.2680, -97.7360], [30.2685, -97.7345],
-    [30.2690, -97.7330], [30.2695, -97.7315], [30.2700, -97.7300],
-    [30.2705, -97.7285], [30.2710, -97.7270], [30.2715, -97.7255],
-    [30.2720, -97.7240], [30.2725, -97.7225],
-  ];
-
-  const bostonCharles: [number, number][] = [
-    [42.3555, -71.0800], [42.3560, -71.0788], [42.3568, -71.0775],
-    [42.3575, -71.0762], [42.3582, -71.0750], [42.3590, -71.0738],
-    [42.3598, -71.0725], [42.3605, -71.0712], [42.3612, -71.0700],
-    [42.3620, -71.0688], [42.3628, -71.0675], [42.3635, -71.0662],
-    [42.3642, -71.0650], [42.3650, -71.0638], [42.3658, -71.0625],
-    [42.3665, -71.0612], [42.3672, -71.0600],
-  ];
-
-  const routes: Route[] = [];
-
-  const seg1 = generateRouteSegments(sfEmbarcadero, ["well_lit", "well_lit", "well_lit", "partial"]);
-  routes.push({
+const sampleRouteDefs: SampleRouteDef[] = [
+  {
     id: "sf-embarcadero",
     name: "Embarcadero Waterfront Loop",
     description: "A scenic waterfront route along the Embarcadero with stunning bay views. Well-lit boardwalk with frequent lamp posts and city lighting.",
@@ -134,14 +63,14 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "easy",
     type: "run",
     city: "San Francisco, CA",
-    coordinates: sfEmbarcadero,
-    lightingScore: calculateLightingScore(seg1),
+    waypoints: [
+      [37.7955, -122.3937], [37.7990, -122.3845],
+      [37.8028, -122.3757], [37.8065, -122.3670], [37.8095, -122.3600],
+    ],
+    lightingPattern: ["well_lit", "well_lit", "well_lit", "partial"],
     totalLampPosts: 42,
-    segments: seg1,
-  });
-
-  const seg2 = generateRouteSegments(sfGoldenGate, ["partial", "unlit", "unlit", "partial", "well_lit"]);
-  routes.push({
+  },
+  {
     id: "sf-golden-gate",
     name: "Golden Gate Park Trail",
     description: "Wind through the western end of Golden Gate Park. Sections through wooded areas have limited lighting - best for daytime runs.",
@@ -150,14 +79,15 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "moderate",
     type: "run",
     city: "San Francisco, CA",
-    coordinates: sfGoldenGate,
-    lightingScore: calculateLightingScore(seg2),
+    waypoints: [
+      [37.7694, -122.4862], [37.7745, -122.4890],
+      [37.7800, -122.4903], [37.7860, -122.4912],
+      [37.7920, -122.4922], [37.7985, -122.4935], [37.8022, -122.4942],
+    ],
+    lightingPattern: ["partial", "unlit", "unlit", "partial", "well_lit"],
     totalLampPosts: 12,
-    segments: seg2,
-  });
-
-  const seg3 = generateRouteSegments(nycCentralPark, ["well_lit", "well_lit", "partial", "well_lit"]);
-  routes.push({
+  },
+  {
     id: "nyc-central-park",
     name: "Central Park Reservoir Loop",
     description: "Classic NYC running route around the Jacqueline Kennedy Onassis Reservoir. Well-maintained paths with regular lamp posts throughout.",
@@ -166,14 +96,14 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "easy",
     type: "run",
     city: "New York, NY",
-    coordinates: nycCentralPark,
-    lightingScore: calculateLightingScore(seg3),
+    waypoints: [
+      [40.7644, -73.9730], [40.7680, -73.9698],
+      [40.7718, -73.9662], [40.7755, -73.9625], [40.7785, -73.9595],
+    ],
+    lightingPattern: ["well_lit", "well_lit", "partial", "well_lit"],
     totalLampPosts: 56,
-    segments: seg3,
-  });
-
-  const seg4 = generateRouteSegments(nycBrooklyn, ["well_lit", "partial", "partial"]);
-  routes.push({
+  },
+  {
     id: "nyc-brooklyn-bridge",
     name: "Brooklyn Bridge to DUMBO",
     description: "Cross the iconic Brooklyn Bridge and loop through DUMBO. Mix of bridge lighting and quieter waterfront sections.",
@@ -182,14 +112,14 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "moderate",
     type: "walk",
     city: "New York, NY",
-    coordinates: nycBrooklyn,
-    lightingScore: calculateLightingScore(seg4),
+    waypoints: [
+      [40.7128, -74.0060], [40.7058, -73.9968],
+      [40.6980, -73.9880], [40.6892, -73.9845],
+    ],
+    lightingPattern: ["well_lit", "partial", "partial"],
     totalLampPosts: 28,
-    segments: seg4,
-  });
-
-  const seg5 = generateRouteSegments(chicagoLakefront, ["well_lit", "well_lit", "well_lit", "well_lit"]);
-  routes.push({
+  },
+  {
     id: "chicago-lakefront",
     name: "Lakefront Trail North",
     description: "Follow the Chicago Lakefront Trail northward with spectacular skyline views. Excellently lit path popular with runners year-round.",
@@ -198,14 +128,14 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "easy",
     type: "ride",
     city: "Chicago, IL",
-    coordinates: chicagoLakefront,
-    lightingScore: calculateLightingScore(seg5),
+    waypoints: [
+      [41.8827, -87.6130], [41.8885, -87.6092],
+      [41.8945, -87.6052], [41.9005, -87.6012], [41.9035, -87.5992],
+    ],
+    lightingPattern: ["well_lit", "well_lit", "well_lit", "well_lit"],
     totalLampPosts: 68,
-    segments: seg5,
-  });
-
-  const seg6 = generateRouteSegments(seattleBurke, ["well_lit", "partial", "unlit", "partial"]);
-  routes.push({
+  },
+  {
     id: "seattle-burke",
     name: "Burke-Gilman Trail",
     description: "Popular multi-use trail through the University District. Varies from well-lit campus sections to darker wooded stretches.",
@@ -214,14 +144,14 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "moderate",
     type: "ride",
     city: "Seattle, WA",
-    coordinates: seattleBurke,
-    lightingScore: calculateLightingScore(seg6),
+    waypoints: [
+      [47.6535, -122.3220], [47.6565, -122.3170],
+      [47.6595, -122.3120], [47.6625, -122.3070], [47.6648, -122.3032],
+    ],
+    lightingPattern: ["well_lit", "partial", "unlit", "partial"],
     totalLampPosts: 18,
-    segments: seg6,
-  });
-
-  const seg7 = generateRouteSegments(portlandForest, ["unlit", "unlit", "unlit"]);
-  routes.push({
+  },
+  {
     id: "portland-forest",
     name: "Forest Park Wildwood Trail",
     description: "Challenging trail through old-growth forest. No artificial lighting - strictly a daytime route. Beautiful but remote.",
@@ -230,14 +160,14 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "hard",
     type: "run",
     city: "Portland, OR",
-    coordinates: portlandForest,
-    lightingScore: calculateLightingScore(seg7),
+    waypoints: [
+      [45.5100, -122.7160], [45.5145, -122.7250],
+      [45.5190, -122.7340], [45.5228, -122.7415],
+    ],
+    lightingPattern: ["unlit", "unlit", "unlit"],
     totalLampPosts: 0,
-    segments: seg7,
-  });
-
-  const seg8 = generateRouteSegments(austinTownLake, ["well_lit", "well_lit", "partial", "well_lit"]);
-  routes.push({
+  },
+  {
     id: "austin-town-lake",
     name: "Lady Bird Lake Trail",
     description: "Austin's most popular running trail around Lady Bird Lake. Mostly well-lit with some dimmer sections near the boardwalk area.",
@@ -246,14 +176,14 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "easy",
     type: "run",
     city: "Austin, TX",
-    coordinates: austinTownLake,
-    lightingScore: calculateLightingScore(seg8),
+    waypoints: [
+      [30.2630, -97.7510], [30.2655, -97.7435],
+      [30.2680, -97.7360], [30.2705, -97.7285], [30.2725, -97.7225],
+    ],
+    lightingPattern: ["well_lit", "well_lit", "partial", "well_lit"],
     totalLampPosts: 45,
-    segments: seg8,
-  });
-
-  const seg9 = generateRouteSegments(bostonCharles, ["well_lit", "well_lit", "partial"]);
-  routes.push({
+  },
+  {
     id: "boston-charles",
     name: "Charles River Esplanade",
     description: "Run along the Charles River with views of MIT and the Hatch Shell. Well-maintained path with good lighting along most of the route.",
@@ -262,14 +192,14 @@ const sampleRoutes: Route[] = (() => {
     difficulty: "easy",
     type: "run",
     city: "Boston, MA",
-    coordinates: bostonCharles,
-    lightingScore: calculateLightingScore(seg9),
+    waypoints: [
+      [42.3555, -71.0800], [42.3590, -71.0738],
+      [42.3628, -71.0675], [42.3658, -71.0625], [42.3672, -71.0600],
+    ],
+    lightingPattern: ["well_lit", "well_lit", "partial"],
     totalLampPosts: 38,
-    segments: seg9,
-  });
-
-  return routes;
-})();
+  },
+];
 
 const sampleAmenities: Record<string, Amenity[]> = {
   "sf-embarcadero": [
@@ -328,9 +258,100 @@ const sampleAmenities: Record<string, Amenity[]> = {
   ],
 };
 
+async function getCachedGeometry(routeId: string): Promise<[number, number][] | null> {
+  const result = await db.select().from(cachedRouteGeometry).where(eq(cachedRouteGeometry.routeId, routeId));
+  if (result.length > 0) {
+    return result[0].coordinates as [number, number][];
+  }
+  return null;
+}
+
+async function cacheGeometry(routeId: string, coordinates: [number, number][], distance: number | null): Promise<void> {
+  await db.insert(cachedRouteGeometry).values({
+    routeId,
+    coordinates: coordinates as any,
+    distance,
+  }).onConflictDoUpdate({
+    target: cachedRouteGeometry.routeId,
+    set: { coordinates: coordinates as any, distance },
+  });
+}
+
+async function buildSampleRoute(def: SampleRouteDef): Promise<Route> {
+  let coordinates: [number, number][];
+
+  const cached = await getCachedGeometry(def.id);
+  if (cached) {
+    coordinates = cached;
+  } else {
+    try {
+      const result = await snapToRoads(def.waypoints, def.type);
+      coordinates = result.coordinates;
+      await cacheGeometry(def.id, coordinates, result.distance);
+    } catch (err) {
+      console.warn(`OSRM snap failed for ${def.id}, using waypoints as fallback:`, err);
+      coordinates = def.waypoints;
+    }
+  }
+
+  const segments = generateRouteSegments(coordinates, def.lightingPattern);
+
+  return {
+    id: def.id,
+    name: def.name,
+    description: def.description,
+    distance: def.distance,
+    elevationGain: def.elevationGain,
+    difficulty: def.difficulty,
+    type: def.type,
+    city: def.city,
+    coordinates,
+    lightingScore: calculateLightingScore(segments),
+    totalLampPosts: def.totalLampPosts,
+    segments,
+  };
+}
+
 export class MemStorage implements IStorage {
+  private sampleRoutes: Route[] = [];
+  private initialized = false;
+
+  async initializeSampleRoutes(): Promise<void> {
+    if (this.initialized) return;
+
+    const results = await Promise.allSettled(
+      sampleRouteDefs.map(def => buildSampleRoute(def))
+    );
+
+    this.sampleRoutes = results
+      .filter((r): r is PromiseFulfilledResult<Route> => r.status === "fulfilled")
+      .map(r => r.value);
+
+    this.initialized = true;
+    console.log(`Initialized ${this.sampleRoutes.length} sample routes with road-snapped coordinates`);
+  }
+
   async getRoutes(search?: RouteSearch): Promise<Route[]> {
-    let filtered = [...sampleRoutes];
+    await this.initializeSampleRoutes();
+
+    const dbRoutes = await db.select().from(userRoutes);
+    const userRoutesList: Route[] = dbRoutes.map(r => ({
+      id: r.routeId,
+      name: r.name,
+      description: r.description,
+      distance: r.distance,
+      elevationGain: r.elevationGain,
+      difficulty: r.difficulty as Route["difficulty"],
+      type: r.type as Route["type"],
+      city: r.city,
+      coordinates: r.coordinates as [number, number][],
+      lightingScore: r.lightingScore,
+      totalLampPosts: r.totalLampPosts,
+      segments: r.segments as Route["segments"],
+      isUserCreated: true,
+    }));
+
+    let filtered = [...this.sampleRoutes, ...userRoutesList];
 
     if (search?.difficulty) {
       filtered = filtered.filter(r => r.difficulty === search.difficulty);
@@ -353,11 +374,92 @@ export class MemStorage implements IStorage {
   }
 
   async getRouteById(id: string): Promise<Route | undefined> {
-    return sampleRoutes.find(r => r.id === id);
+    await this.initializeSampleRoutes();
+
+    const sample = this.sampleRoutes.find(r => r.id === id);
+    if (sample) return sample;
+
+    const result = await db.select().from(userRoutes).where(eq(userRoutes.routeId, id));
+    if (result.length > 0) {
+      const r = result[0];
+      return {
+        id: r.routeId,
+        name: r.name,
+        description: r.description,
+        distance: r.distance,
+        elevationGain: r.elevationGain,
+        difficulty: r.difficulty as Route["difficulty"],
+        type: r.type as Route["type"],
+        city: r.city,
+        coordinates: r.coordinates as [number, number][],
+        lightingScore: r.lightingScore,
+        totalLampPosts: r.totalLampPosts,
+        segments: r.segments as Route["segments"],
+        isUserCreated: true,
+      };
+    }
+
+    return undefined;
   }
 
   async getAmenitiesForRoute(routeId: string): Promise<Amenity[]> {
-    return sampleAmenities[routeId] || [];
+    if (sampleAmenities[routeId]) {
+      return sampleAmenities[routeId];
+    }
+
+    const result = await db.select().from(userAmenities).where(eq(userAmenities.routeId, routeId));
+    return result.map(a => ({
+      id: a.amenityId,
+      name: a.name,
+      type: a.type as Amenity["type"],
+      lat: a.lat,
+      lng: a.lng,
+      openHours: a.openHours || undefined,
+      distanceFromRoute: a.distanceFromRoute,
+    }));
+  }
+
+  async createRoute(route: Route, amenities: Amenity[]): Promise<Route> {
+    await db.insert(userRoutes).values({
+      routeId: route.id,
+      name: route.name,
+      description: route.description,
+      distance: route.distance,
+      elevationGain: route.elevationGain,
+      difficulty: route.difficulty,
+      type: route.type,
+      city: route.city,
+      coordinates: route.coordinates as any,
+      lightingScore: route.lightingScore,
+      totalLampPosts: route.totalLampPosts,
+      segments: route.segments as any,
+    });
+
+    if (amenities.length > 0) {
+      await db.insert(userAmenities).values(
+        amenities.map(a => ({
+          routeId: route.id,
+          amenityId: a.id,
+          name: a.name,
+          type: a.type,
+          lat: a.lat,
+          lng: a.lng,
+          openHours: a.openHours || null,
+          distanceFromRoute: a.distanceFromRoute,
+        }))
+      );
+    }
+
+    return { ...route, isUserCreated: true };
+  }
+
+  async deleteRoute(id: string): Promise<boolean> {
+    const isSample = sampleRouteDefs.some(r => r.id === id);
+    if (isSample) return false;
+
+    await db.delete(userAmenities).where(eq(userAmenities.routeId, id));
+    const result = await db.delete(userRoutes).where(eq(userRoutes.routeId, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

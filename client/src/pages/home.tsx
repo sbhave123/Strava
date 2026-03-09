@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import type { Route } from "@shared/schema";
-import { Search, MapPin, Mountain, Zap, SlidersHorizontal, Lightbulb, ChevronDown, X, AlertCircle, RefreshCw } from "lucide-react";
+import { Search, MapPin, Mountain, Zap, SlidersHorizontal, Lightbulb, ChevronDown, X, AlertCircle, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -174,6 +174,16 @@ export default function Home() {
                 />
               </div>
             </div>
+
+            <Link href="/create">
+              <Button
+                data-testid="button-create-route"
+                size="sm"
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                <span className="hidden sm:inline">Create Route</span>
+              </Button>
+            </Link>
 
             <Button
               data-testid="button-toggle-filters"

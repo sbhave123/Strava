@@ -1,4 +1,4 @@
-# SafeRoute - Strava Route Safety Companion
+# Strava - Route Safety Companion
 
 ## Overview
 A Strava companion web app that enhances route planning with street lighting data (lamp posts, artificial lighting) and safety amenity markers (restrooms, coffee shops, water fountains, police stations, convenience stores). Designed to help athletes, especially those running in early morning or evening hours, find well-lit routes with convenient facilities.

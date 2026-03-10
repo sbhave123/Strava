@@ -75,6 +75,7 @@ export default function CreateRoute() {
   const [elevationGain, setElevationGain] = useState(0);
 
   const [isSnapping, setIsSnapping] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   const snapMutation = useMutation({
     mutationFn: async (data: { waypoints: [number, number][]; type: string }) => {
@@ -121,12 +122,7 @@ export default function CreateRoute() {
       }).addTo(map);
 
       mapInstanceRef.current = map;
-
-      map.on("click", (e: any) => {
-        if (step === "amenities" && placingAmenity) {
-          return;
-        }
-      });
+      setMapReady(true);
     };
 
     loadMap();
@@ -256,7 +252,7 @@ export default function CreateRoute() {
 
     map.on("click", handler);
     return () => { map.off("click", handler); };
-  }, [step, placingAmenity]);
+  }, [step, placingAmenity, mapReady]);
 
   const handleSnapToRoads = async () => {
     if (waypoints.length < 2) return;

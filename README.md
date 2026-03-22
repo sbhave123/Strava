@@ -4,7 +4,7 @@
 
 Runners, cyclists, and walkers who exercise during early morning or late evening hours face a real safety concern: they don't know which stretches of their route are well-lit and which leave them in the dark. Most mapping tools show you *where* to go but tell you nothing about *how safe* it is to be there after sunset. Meanwhile, knowing where the nearest restroom, coffee shop, or water fountain is along a 10-mile route is the kind of practical information that's surprisingly hard to find on a single screen.
 
-This is especially acute for solo female runners, people new to a city, and anyone training through winter months when daylight disappears by 5 PM. Strava already tracks *what you did* — this tool helps you decide *where you should go*.
+This is especially acute for solo female runners, people new to a city, and anyone training through winter months when daylight disappears by 5 PM. 
 
 ## The Solution
 

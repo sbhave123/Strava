@@ -70,7 +70,7 @@ This directly addresses Strava's documented heatmap problem: sparse, demographic
  
 ### Subscription conversion model
  
-```
+
 Strava estimated paid subscribers: ~10–15% of 180M base
 = ~18–27M subscribers at $80/year
  

@@ -19,18 +19,17 @@ The core interaction is visual. You look at a route on the map and immediately s
 
 Home Page & Route Details
 
-<img width="1422" height="765" alt="Screenshot 2026-03-13 at 4 47 03 PM" src="https://github.com/user-attachments/assets/286df156-4b36-47e9-983d-b1812a2954e3" />
 <img width="1421" height="764" alt="Screenshot 2026-03-13 at 4 46 27 PM" src="https://github.com/user-attachments/assets/23d4a8e8-612e-4c80-80d3-e95ece8a1e43" />
+<img width="1422" height="765" alt="Screenshot 2026-03-13 at 4 47 03 PM" src="https://github.com/user-attachments/assets/286df156-4b36-47e9-983d-b1812a2954e3" />
+
 
 Custom Route Creation
-<img width="1413" height="767" alt="Screenshot 2026-03-13 at 4 49 28 PM" src="https://github.com/user-attachments/assets/633313a8-5749-41eb-8eb3-34c3ae2e10a0" />
-<img width="1419" height="762" alt="Screenshot 2026-03-13 at 4 49 17 PM" src="https://github.com/user-attachments/assets/cf920200-cf44-479a-a76f-12e803a2d522" />
-<img width="1421" height="763" alt="Screenshot 2026-03-13 at 4 48 46 PM" src="https://github.com/user-attachments/assets/8e6bfd40-095e-4c4d-9976-425df36b89b6" />
-<img width="1421" height="761" alt="Screenshot 2026-03-13 at 4 48 17 PM" src="https://github.com/user-attachments/assets/ce1f6888-9331-42a6-8d69-4a46b9f25cca" />
-<img width="1421" height="765" alt="Screenshot 2026-03-13 at 4 47 56 PM" src="https://github.com/user-attachments/assets/64c3ccbb-5210-442c-aff1-029dc8c42bda" />
 <img width="1172" height="618" alt="Screenshot 2026-03-13 at 4 47 25 PM" src="https://github.com/user-attachments/assets/ed3f4352-f042-4943-a372-b3de7bf55deb" />
-
-
+<img width="1421" height="765" alt="Screenshot 2026-03-13 at 4 47 56 PM" src="https://github.com/user-attachments/assets/64c3ccbb-5210-442c-aff1-029dc8c42bda" />
+<img width="1421" height="761" alt="Screenshot 2026-03-13 at 4 48 17 PM" src="https://github.com/user-attachments/assets/ce1f6888-9331-42a6-8d69-4a46b9f25cca" />
+<img width="1421" height="763" alt="Screenshot 2026-03-13 at 4 48 46 PM" src="https://github.com/user-attachments/assets/8e6bfd40-095e-4c4d-9976-425df36b89b6" />
+<img width="1419" height="762" alt="Screenshot 2026-03-13 at 4 49 17 PM" src="https://github.com/user-attachments/assets/cf920200-cf44-479a-a76f-12e803a2d522" />
+<img width="1413" height="767" alt="Screenshot 2026-03-13 at 4 49 28 PM" src="https://github.com/user-attachments/assets/633313a8-5749-41eb-8eb3-34c3ae2e10a0" />
 
 ## Tradeoffs and Decisions
 

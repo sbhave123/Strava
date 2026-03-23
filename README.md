@@ -1,5 +1,7 @@
 # Strava Safe Route Finder -- https://StravaRoutes.replit.app
 
+Airtable ProdOps workspace for tracking; https://airtable.com/apphDGK9V7akAg1xk/shr8Uou6IVDTv0PSL/tblj1GG1jmMrLSM9Z/viwU2OWnsdefQ9SGk
+
 ## The Problem
 
 Runners, cyclists, and walkers who exercise during early morning or late evening hours face a real safety concern: they don't know which stretches of their route are well-lit and which leave them in the dark. Most mapping tools show you *where* to go but tell you nothing about *how safe* it is to be there after sunset. Meanwhile, knowing where the nearest restroom, coffee shop, or water fountain is along a 10-mile route is the kind of practical information that's surprisingly hard to find on a single screen.

@@ -84,6 +84,6 @@ paywall that adds value rather than removing it, directly
 addressing Strava's documented paywall resentment problem
 
 ### Assumptions & caveats
- 
-These numbers are intentionally directional. The actual calibration would require Strava's internal data on activity timestamps (to validate the 20% low-light training estimate), churn rates by engagement tier, and observed conversion rates from free to paid. The value of this model is the reasoning structure — each assumption is a hypothesis that would be validated in the first weeks of an instrumented rollout.
+These numbers are intentionally directional. The actual calibration would require Strava's internal data on activity timestamps (to validate the 20% low-light training estimate), churn rates by engagement tier, and observed conversion rates from free to paid. The value of this model is the reasoning structure — each
+assumption is a hypothesis that would be validated in the first weeks of an instrumented rollout.
 
